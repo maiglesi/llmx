@@ -1,0 +1,335 @@
+#!/usr/bin/env bash
+# LLMX Orchestrator - Multi-LLM Workflow Coordination
+# https://github.com/yourusername/llmx
+
+set -e
+
+VERSION="1.0.0"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+LLMX="${SCRIPT_DIR}/llmx"
+
+# Load config
+[[ -f "$HOME/.llmxrc" ]] && source "$HOME/.llmxrc"
+
+# Colors
+if [[ -z "${NO_COLOR:-}" ]]; then
+    RED='\033[0;31m'
+    GREEN='\033[0;32m'
+    YELLOW='\033[1;33m'
+    BLUE='\033[0;34m'
+    CYAN='\033[0;36m'
+    MAGENTA='\033[0;35m'
+    BOLD='\033[1m'
+    NC='\033[0m'
+else
+    RED='' GREEN='' YELLOW='' BLUE='' CYAN='' MAGENTA='' BOLD='' NC=''
+fi
+
+# LLM Commands
+LLMX_CMD_GEMINI="${LLMX_CMD_GEMINI:-gemini}"
+LLMX_CMD_CODEX="${LLMX_CMD_CODEX:-codex exec}"
+
+usage() {
+    cat << EOF
+${CYAN}${BOLD}LLMX Orchestrator${NC} - Multi-LLM Workflow Coordination v${VERSION}
+
+${BOLD}Usage:${NC}
+  orchestrate <workflow> [options]
+
+${BOLD}Workflows:${NC}
+  review <path>               Parallel code review by multiple LLMs
+  implement <task> [--issue]  Coordinated implementation workflow
+  plan <feature>              Get architecture plans from all LLMs
+  consensus <question>        Build consensus across LLMs
+  handoff <from> <to> <ctx>   Structured handoff between LLMs
+
+${BOLD}Options:${NC}
+  -i, --issue <ID>    Associate with issue/ticket
+  -p, --priority <N>  Set priority (1-5)
+  -h, --help          Show this help
+
+${BOLD}Examples:${NC}
+  orchestrate review src/components
+  orchestrate implement "add user auth" --issue PROJ-123
+  orchestrate plan "real-time notifications"
+  orchestrate consensus "WebSockets vs SSE?"
+  orchestrate handoff Gemini Codex "frontend complete"
+
+${BOLD}More info:${NC}
+  https://github.com/yourusername/llmx
+EOF
+}
+
+# Box drawing
+box_header() {
+    local title="$1"
+    local color="$2"
+    echo -e "${color}╔══════════════════════════════════════════════════════════════╗${NC}"
+    printf "${color}║  %-60s ║${NC}\n" "$title"
+    echo -e "${color}╚══════════════════════════════════════════════════════════════╝${NC}"
+}
+
+# Parallel code review
+workflow_review() {
+    local path="$1"
+
+    if [[ -z "$path" ]]; then
+        echo -e "${RED}Error: path required${NC}" >&2
+        echo "Usage: orchestrate review <path>" >&2
+        return 1
+    fi
+
+    box_header "LLMX PARALLEL REVIEW WORKFLOW" "$MAGENTA"
+    echo
+    echo -e "${CYAN}Target:${NC} $path"
+    echo
+
+    local gemini_prompt="CTX:{p:review,f:[\"$path\"]}
+REQ:{o:\"Review for: UI/UX patterns, component architecture, accessibility, performance. Rate 1-10 per category with specific file:line issues.\",pr:2}"
+
+    local codex_prompt="CTX:{p:review,f:[\"$path\"]}
+REQ:{o:\"Review for: API design, type safety, security vulnerabilities, error handling. Rate 1-10 per category with specific file:line issues.\",pr:2}"
+
+    local gemini_out codex_out
+    gemini_out=$(mktemp)
+    codex_out=$(mktemp)
+
+    echo -e "${YELLOW}Starting parallel reviews...${NC}"
+
+    (echo "$gemini_prompt" | $LLMX_CMD_GEMINI 2>/dev/null) > "$gemini_out" &
+    local gpid=$!
+
+    ($LLMX_CMD_CODEX "$codex_prompt" 2>/dev/null | tail -n +20) > "$codex_out" &
+    local cpid=$!
+
+    echo -n "Reviewing"
+    while kill -0 $gpid 2>/dev/null || kill -0 $cpid 2>/dev/null; do
+        echo -n "."
+        sleep 2
+    done
+    echo " Done!"
+    echo
+
+    box_header "GEMINI REVIEW (Frontend/UI)" "$BLUE"
+    cat "$gemini_out"
+    echo
+
+    box_header "CODEX REVIEW (Backend/Security)" "$GREEN"
+    cat "$codex_out"
+    echo
+
+    rm -f "$gemini_out" "$codex_out"
+
+    echo -e "${MAGENTA}Review complete. Check findings above for action items.${NC}"
+}
+
+# Coordinated implementation
+workflow_implement() {
+    local task="" issue="" priority="2"
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            -i|--issue) issue="$2"; shift 2 ;;
+            -p|--priority) priority="$2"; shift 2 ;;
+            *) task="$task $1"; shift ;;
+        esac
+    done
+    task="${task# }"
+
+    if [[ -z "$task" ]]; then
+        echo -e "${RED}Error: task required${NC}" >&2
+        return 1
+    fi
+
+    box_header "LLMX IMPLEMENTATION WORKFLOW" "$MAGENTA"
+    echo
+    echo -e "${CYAN}Task:${NC} $task"
+    [[ -n "$issue" ]] && echo -e "${CYAN}Issue:${NC} $issue"
+    echo
+
+    # Step 1: Architecture from Gemini
+    echo -e "${YELLOW}Step 1: Architecture Design (Gemini)${NC}"
+    echo "─────────────────────────────────────────────────"
+
+    local arch_prompt="CTX:{p:impl${issue:+,issue:\"$issue\"}}
+REQ:{o:\"Design architecture for: $task. Provide: 1) Component structure, 2) File locations, 3) Key interfaces, 4) Integration points. Be concise.\",pr:$priority}"
+
+    local arch_response
+    arch_response=$(echo "$arch_prompt" | $LLMX_CMD_GEMINI 2>/dev/null)
+    echo "$arch_response"
+    echo
+
+    # Step 2: Implementation by Codex
+    echo -e "${YELLOW}Step 2: Implementation (Codex)${NC}"
+    echo "─────────────────────────────────────────────────"
+
+    local impl_prompt="CTX:{p:impl${issue:+,issue:\"$issue\"},st:{arch:\"provided\"}}
+REQ:{o:\"Implement: $task. Follow best practices.\",pr:$priority}
+PLAN:[(i:1,t:\"create types\",s:P),(i:2,t:\"implement core\",s:P),(i:3,t:\"add tests\",s:P)]
+
+Architecture from Gemini:
+$arch_response"
+
+    $LLMX_CMD_CODEX "$impl_prompt" 2>/dev/null | tail -n +20
+    echo
+
+    echo -e "${MAGENTA}Implementation workflow complete.${NC}"
+}
+
+# Multi-LLM planning
+workflow_plan() {
+    local feature="$*"
+
+    if [[ -z "$feature" ]]; then
+        echo -e "${RED}Error: feature required${NC}" >&2
+        return 1
+    fi
+
+    box_header "LLMX PLANNING WORKFLOW" "$MAGENTA"
+    echo
+    echo -e "${CYAN}Feature:${NC} $feature"
+    echo
+
+    local plan_prompt="CTX:{p:planning}
+REQ:{o:\"Plan implementation for: $feature. Include: 1) Technical approach, 2) Files to create/modify, 3) Dependencies, 4) Risks, 5) Complexity (S/M/L/XL)\",pr:2}"
+
+    local gemini_out codex_out
+    gemini_out=$(mktemp)
+    codex_out=$(mktemp)
+
+    echo -e "${YELLOW}Gathering plans...${NC}"
+
+    (echo "$plan_prompt" | $LLMX_CMD_GEMINI 2>/dev/null) > "$gemini_out" &
+    ($LLMX_CMD_CODEX "$plan_prompt" 2>/dev/null | tail -n +20) > "$codex_out" &
+    wait
+
+    echo
+
+    box_header "GEMINI PLAN" "$BLUE"
+    cat "$gemini_out"
+    echo
+
+    box_header "CODEX PLAN" "$GREEN"
+    cat "$codex_out"
+    echo
+
+    rm -f "$gemini_out" "$codex_out"
+
+    echo -e "${MAGENTA}Review plans above and choose approach.${NC}"
+}
+
+# Consensus building
+workflow_consensus() {
+    local question="$*"
+
+    if [[ -z "$question" ]]; then
+        echo -e "${RED}Error: question required${NC}" >&2
+        return 1
+    fi
+
+    box_header "LLMX CONSENSUS WORKFLOW" "$MAGENTA"
+    echo
+    echo -e "${CYAN}Question:${NC} $question"
+    echo
+
+    local prompt="CTX:{p:consensus}
+ASK:{q:\"$question\",o:[]}
+REQ:{o:\"Provide your recommendation with brief rationale.\",pr:2}"
+
+    local gemini_out codex_out
+    gemini_out=$(mktemp)
+    codex_out=$(mktemp)
+
+    echo -e "${YELLOW}Gathering opinions...${NC}"
+
+    (echo "$prompt" | $LLMX_CMD_GEMINI 2>/dev/null) > "$gemini_out" &
+    ($LLMX_CMD_CODEX "$prompt" 2>/dev/null | tail -n +20) > "$codex_out" &
+    wait
+
+    echo
+    echo -e "${BLUE}${BOLD}Gemini:${NC}"
+    cat "$gemini_out"
+    echo
+    echo -e "${GREEN}${BOLD}Codex:${NC}"
+    cat "$codex_out"
+    echo
+
+    rm -f "$gemini_out" "$codex_out"
+
+    echo -e "${MAGENTA}Review opinions above for consensus.${NC}"
+}
+
+# Structured handoff
+workflow_handoff() {
+    local from="$1" to="$2" context="$3"
+
+    if [[ -z "$from" ]] || [[ -z "$to" ]] || [[ -z "$context" ]]; then
+        echo -e "${RED}Error: from, to, and context required${NC}" >&2
+        echo "Usage: orchestrate handoff <from> <to> 'context'" >&2
+        return 1
+    fi
+
+    box_header "LLMX HANDOFF" "$MAGENTA"
+    echo
+    echo -e "${CYAN}From:${NC} $from → ${CYAN}To:${NC} $to"
+    echo -e "${CYAN}Context:${NC} $context"
+    echo
+
+    local msg="HEADER:{f:$from,t:$to,s:1}
+CTX:{p:handoff,st:{handoff:true}}
+END:{n:\"continue work\",del:[]}
+
+Handoff context: $context"
+
+    case "${to,,}" in
+        gemini)
+            echo "$msg" | $LLMX_CMD_GEMINI 2>/dev/null
+            ;;
+        codex)
+            $LLMX_CMD_CODEX "$msg" 2>/dev/null | tail -n +20
+            ;;
+        *)
+            echo -e "${RED}Unknown target: $to${NC}" >&2
+            return 1
+            ;;
+    esac
+}
+
+# Main
+main() {
+    case "${1:-}" in
+        review)
+            shift
+            workflow_review "$@"
+            ;;
+        implement)
+            shift
+            workflow_implement "$@"
+            ;;
+        plan)
+            shift
+            workflow_plan "$@"
+            ;;
+        consensus)
+            shift
+            workflow_consensus "$@"
+            ;;
+        handoff)
+            shift
+            workflow_handoff "$@"
+            ;;
+        version|--version|-v)
+            echo "LLMX Orchestrator v${VERSION}"
+            ;;
+        help|--help|-h|"")
+            usage
+            ;;
+        *)
+            echo -e "${RED}Unknown workflow: $1${NC}" >&2
+            echo "Run 'orchestrate --help' for usage" >&2
+            exit 1
+            ;;
+    esac
+}
+
+main "$@"
