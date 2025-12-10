@@ -36,7 +36,7 @@ When orchestrating multiple AI agents, communication overhead becomes significan
 
 ```bash
 # Clone the repo
-git clone https://github.com/yourusername/llmx.git
+git clone https://github.com/maiglesi/llmx.git
 cd llmx
 
 # Add to PATH

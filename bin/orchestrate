@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # LLMX Orchestrator - Multi-LLM Workflow Coordination
-# https://github.com/yourusername/llmx
+# https://github.com/maiglesi/llmx
 
 set -e
 
@@ -56,7 +56,7 @@ ${BOLD}Examples:${NC}
   orchestrate handoff Gemini Codex "frontend complete"
 
 ${BOLD}More info:${NC}
-  https://github.com/yourusername/llmx
+  https://github.com/maiglesi/llmx
 EOF
 }
 

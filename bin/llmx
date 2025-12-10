@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # LLMX - LLM Exchange Protocol CLI
-# https://github.com/yourusername/llmx
+# https://github.com/maiglesi/llmx
 #
 # A token-efficient protocol for inter-LLM communication
 
@@ -171,7 +171,7 @@ ${BOLD}Configuration:${NC}
     LLMX_DEFAULT_TARGET="gemini"
 
 ${BOLD}More info:${NC}
-  https://github.com/yourusername/llmx
+  https://github.com/maiglesi/llmx
 EOF
 }
 

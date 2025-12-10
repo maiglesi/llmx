@@ -26,7 +26,7 @@ Thank you for your interest in contributing to LLMX! This document provides guid
 
 ```bash
 # Clone the repo
-git clone https://github.com/yourusername/llmx.git
+git clone https://github.com/maiglesi/llmx.git
 cd llmx
 
 # Make scripts executable
