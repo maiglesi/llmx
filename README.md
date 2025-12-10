@@ -34,22 +34,14 @@ When orchestrating multiple AI agents, communication overhead becomes significan
 
 ### Installation
 
-**One-liner install:**
-```bash
-curl -fsSL https://raw.githubusercontent.com/maiglesi/llmx/main/install.sh | bash
-```
-
-**Or clone and install:**
 ```bash
 git clone https://github.com/maiglesi/llmx.git
 cd llmx
 ./install.sh
 ```
 
-**Manual install:**
+Or add manually to your shell profile (`~/.bashrc` or `~/.zshrc`):
 ```bash
-git clone https://github.com/maiglesi/llmx.git
-# Add to your shell profile (~/.bashrc or ~/.zshrc):
 export PATH="$PATH:$HOME/path/to/llmx/bin"
 ```
 

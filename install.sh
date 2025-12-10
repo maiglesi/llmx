@@ -2,10 +2,7 @@
 # LLMX Installer
 # Installs LLMX CLI tools to ~/.local/bin
 #
-# Usage:
-#   curl -fsSL https://raw.githubusercontent.com/maiglesi/llmx/main/install.sh | bash
-#   # or
-#   ./install.sh
+# Usage: ./install.sh
 
 set -e
 
