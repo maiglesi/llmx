@@ -476,4 +476,4 @@ array       = "[" , [ value , { "," , value } ] , "]" ;
 ---
 
 *LLMX Protocol Specification v1.0*
-*Copyright 2024 - MIT License*
+*Copyright 2025 - MIT License*
